@@ -6,17 +6,17 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 
 @Entity
-public class AppUser {
+public class Person {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String name;
 
-    public AppUser() {
+    public Person() {
     }
 
-    public AppUser(String name) {
+    public Person(String name) {
         this.name = name;
     }
 
