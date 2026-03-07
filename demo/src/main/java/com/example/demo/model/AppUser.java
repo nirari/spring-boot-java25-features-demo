@@ -13,10 +13,10 @@ public class AppUser {
     private Long id;
     private String name;
 
-    public User() {
+    public AppUser() {
     }
 
-    public User(String name) {
+    public AppUser(String name) {
         this.name = name;
     }
 
