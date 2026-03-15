@@ -1,4 +1,4 @@
-# testClaw
+# spring-boot-java25-sequenced-demo
 
 Spring Boot 4.0.3 demo application showcasing Java 25 Sequenced Collections and basic REST APIs with H2 in-memory database.
 
