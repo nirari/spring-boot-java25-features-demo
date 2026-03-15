@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Java 25 Virtual Threads Demo</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+        }
+        .container {
+            background: white;
+            padding: 25px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin: 15px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input[type="number"], select {
+            width: 200px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        button.platform {
+            background-color: #e74c3c;
+        }
+        button.platform:hover {
+            background-color: #c0392b;
+        }
+        button.virtual {
+            background-color: #27ae60;
+        }
+        button.virtual:hover {
+            background-color: #229954;
+        }
+        #results {
+            margin-top: 20px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            background: #ecf0f1;
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 4px solid #3498db;
+        }
+        .metrics-card {
+            background: #2ecc71;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        .metrics-card.error {
+            background: #e74c3c;
+        }
+        .comparison-card {
+            background: #9b59b6;
+            color: white;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #34495e;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        .info-section {
+            background: #fff9e6;
+            border-left: 4px solid #f39c12;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .info-section ul {
+            margin: 10px 0 10px 20px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            background: #95a5a6;
+            color: white;
+            border-radius: 12px;
+            font-size: 12px;
+            margin: 2px;
+        }
+        .badge.success {
+            background: #27ae60;
+        }
+        .badge.error {
+            background: #e74c3c;
+        }
+    </style>
+</head>
+<body>
+    <h1>⚡ Java 25 Virtual Threads Demo</h1>
+
+    <div class="info-section">
+        <p>This interactive demo showcases <strong>Virtual Threads (Project Loom)</strong> introduced in Java 25. Virtual threads enable massive concurrency with minimal overhead compared to traditional platform threads.</p>
+        <p><strong>Key concepts:</strong></p>
+        <ul>
+            <li><strong>Virtual Threads:</strong> Lightweight threads managed by the JVM. Can spawn 10,000+ concurrently.</li>
+            <li><strong>Platform Threads:</strong> Traditional OS threads. Limited to ~1000 concurrent threads due to OS resource constraints.</li>
+            <li><strong>I/O-bound tasks:</strong> Tasks that spend most time waiting (DB queries, HTTP calls). Virtual threads excel here.</li>
+            <li><strong>CPU-bound tasks:</strong> Tasks that use CPU continuously. Platform threads can be slightly faster.</li>
+        </ul>
+    </div>
+
+    <!-- Virtual Threads Form -->
+    <div class="container">
+        <h2>🚀 Execute with Virtual Threads</h2>
+        <form id="virtualForm">
+            <div class="form-group">
+                <label>Number of concurrent tasks:</label>
+                <input type="number" id="vtCount" value="1000" min="1" max="20000" required>
+                <small>Try up to 10,000 or more!</small>
+            </div>
+            <div class="form-group">
+                <label>Task duration (ms):</label>
+                <input type="number" id="vtDuration" value="500" min="10" max="10000" required>
+                <small>How long each task simulates work (sleep)</small>
+            </div>
+            <div class="form-group">
+                <label>Task type:</label>
+                <select id="vtType">
+                    <option value="IO_BOUND">I/O-bound (sleep) - Best for virtual threads</option>
+                    <option value="CPU_BOUND">CPU-bound (calculation) - Both perform similarly</option>
+                    <option value="CUSTOM">Custom (minimal)</option>
+                </select>
+            </div>
+            <button type="submit" class="virtual">Run Virtual Threads</button>
+        </form>
+    </div>
+
+    <!-- Platform Threads Form -->
+    <div class="container">
+        <h2>🏗️ Execute with Platform Threads</h2>
+        <p style="color: #e74c3c;"><strong>Warning:</strong> Platform threads are OS threads. Large counts (>1000) may crash your system or cause severe slowdowns. The API cap: 1000.</p>
+        <form id="platformForm">
+            <div class="form-group">
+                <label>Number of concurrent tasks:</label>
+                <input type="number" id="ptCount" value="100" min="1" max="1000" required>
+                <small>Platform threads are capped at 1000</small>
+            </div>
+            <div class="form-group">
+                <label>Task duration (ms):</label>
+                <input type="number" id="ptDuration" value="500" min="10" max="10000" required>
+            </div>
+            <div class="form-group">
+                <label>Task type:</label>
+                <select id="ptType">
+                    <option value="IO_BOUND">I/O-bound (sleep)</option>
+                    <option value="CPU_BOUND">CPU-bound</option>
+                    <option value="CUSTOM">Custom</option>
+                </select>
+            </div>
+            <button type="submit" class="platform">Run Platform Threads</button>
+        </form>
+    </div>
+
+    <!-- Benchmark Form -->
+    <div class="container">
+        <h2>📊 Benchmark: Compare Both</h2>
+        <p>Run the same workload with virtual and platform threads and compare results side-by-side.</p>
+        <form id="benchmarkForm">
+            <div class="form-group">
+                <label>Number of concurrent tasks:</label>
+                <input type="number" id="benchCount" value="5000" min="10" max="20000" required>
+            </div>
+            <div class="form-group">
+                <label>Task duration (ms):</label>
+                <input type="number" id="benchDuration" value="200" min="10" max="2000" required>
+            </div>
+            <button type="submit" class="virtual">Run Benchmark</button>
+        </form>
+    </div>
+
+    <!-- Pipeline Form -->
+    <div class="container">
+        <h2>🔗 Pipeline Demo</h2>
+        <p>Process multiple items through a multi-stage pipeline using virtual threads. Each item gets its own virtual thread.</p>
+        <form id="pipelineForm">
+            <div class="form-group">
+                <label>Number of items to process:</label>
+                <input type="number" id="pipelineItems" value="1000" min="10" max="10000" required>
+            </div>
+            <div class="form-group">
+                <label>Number of pipeline stages:</label>
+                <input type="number" id="pipelineStages" value="3" min="1" max="10" required>
+                <small>Each stage simulates work (100ms)</small>
+            </div>
+            <button type="submit" class="virtual">Run Pipeline</button>
+        </form>
+    </div>
+
+    <!-- Results Section -->
+    <div class="container">
+        <h2>📈 Results</h2>
+        <div id="results">
+            Submit a form to see results...
+        </div>
+    </div>
+
+    <!-- Info Section -->
+    <div class="container">
+        <h2>📚 About Virtual Threads</h2>
+        <p><strong>What are Virtual Threads?</strong></p>
+        <p>Virtual threads are lightweight threads that are scheduled by the Java Virtual Machine (JVM), not by the OS. Unlike platform threads (1:1 OS thread mapping), virtual threads can be created by the thousands without exhausting system resources.</p>
+
+        <p><strong>Why use Virtual Threads?</strong></p>
+        <ul>
+            <li>I/O-bound applications (web servers, APIs) can handle massive concurrency</li>
+            <li>Simplify async programming - you can write blocking code without wasting threads</li>
+            <li>Same programming model as traditional threads (no callbacks/Futures needed)</li>
+            <li>Millions of virtual threads can coexist on a few platform threads</li>
+        </ul>
+
+        <p><strong>When not to use Virtual Threads?</strong></p>
+        <ul>
+            <li>CPU-intensive computations (use platform threads or parallel streams)</li>
+            <li>When you need direct OS thread control (affinity, priority)</li>
+        </ul>
+
+        <p><strong>Performance notes:</strong></p>
+        <ul>
+            <li>Virtual thread creation: ~2KB stack vs ~1-2MB for platform threads</li>
+            <li>Context switch: ~100ns (virtual) vs ~1-10µs (platform)</li>
+            <li>Blocking I/O doesn't waste OS resources</li>
+        </ul>
+    </div>
+
+    <script>
+        async function postJSON(url, data) {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            return response.json();
+        }
+
+        function displayResults(title, data, isComparison = false, isError = false) {
+            const resultsDiv = document.getElementById('results');
+            let html = `<h3>${title}</h3>\n`;
+
+            if (isError) {
+                html += `<div class="metrics-card error">Error: ${data.error || 'Unknown error'}</div>`;
+                resultsDiv.innerHTML = html;
+                return;
+            }
+
+            if (data.message) {
+                const cardClass = isComparison ? 'comparison-card' : 'metrics-card';
+                html += `<div class="${cardClass}">${data.message.replace(/\n/g, '<br>')}</div>\n`;
+            }
+
+            if (data.metrics) {
+                const m = data.metrics;
+                html += `
+                <h4>Metrics</h4>
+                <ul>
+                    <li><strong>Elapsed Time:</strong> ${m.elapsedTimeMs} ms</li>
+                    <li><strong>Throughput:</strong> ${m.throughput.toFixed(2)} tasks/sec</li>
+                    <li><strong>Active Threads:</strong> ${m.activeThreads}</li>
+                    <li><strong>Tasks:</strong> ${m.taskCount} total, ${m.successCount} succeeded, ${m.errorCount} failed</li>
+                    <li><strong>Timestamp:</strong> ${new Date(m.timestamp).toLocaleTimeString()}</li>
+                </ul>
+                `;
+            }
+
+            if (data.comparison) {
+                html += `<div class="comparison-card"><p>${data.comparison}</p></div>\n`;
+            }
+
+            if (data.virtual && data.platform) {
+                html += `
+                <h4>Detailed Comparison</h4>
+                <table>
+                    <tr>
+                        <th>Metric</th>
+                        <th>Virtual Threads</th>
+                        <th>Platform Threads</th>
+                    </tr>
+                    <tr>
+                        <td>Throughput (tasks/sec)</td>
+                        <td>${data.virtual.metrics.throughput.toFixed(2)}</td>
+                        <td>${data.platform.metrics.throughput.toFixed(2)}</td>
+                    </tr>
+                    <tr>
+                        <td>Elapsed (ms)</td>
+                        <td>${data.virtual.metrics.elapsedTimeMs}</td>
+                        <td>${data.platform.metrics.elapsedTimeMs}</td>
+                    </tr>
+                    <tr>
+                        <td>Active Threads</td>
+                        <td>${data.virtual.metrics.activeThreads}</td>
+                        <td>${data.platform.metrics.activeThreads}</td>
+                    </tr>
+                    <tr>
+                        <td>Success Rate</td>
+                        <td>${((data.virtual.metrics.successCount / data.virtual.metrics.taskCount) * 100).toFixed(1)}%</td>
+                        <td>${((data.platform.metrics.successCount / data.platform.metrics.taskCount) * 100).toFixed(1)}%</td>
+                    </tr>
+                </table>
+                `;
+            }
+
+            if (data.results && data.results.length > 0 && data.results.length <= 20) {
+                html += `<h4>Individual Task Results (showing first ${data.results.length})</h4>\n`;
+                html += `<table><tr><th>Success</th><th>Duration (ms)</th><th>Error</th></tr>\n`;
+                data.results.forEach(r => {
+                    const badgeClass = r.success ? 'success' : 'error';
+                    const status = r.success ? '✓' : '✗';
+                    html += `<tr>
+                        <td><span class="badge ${badgeClass}">${status}</span></td>
+                        <td>${r.durationMs}</td>
+                        <td>${r.error || '-'}</td>
+                    </tr>\n`;
+                });
+                html += `</table>\n`;
+            }
+
+            resultsDiv.innerHTML = html;
+        }
+
+        document.getElementById('virtualForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                count: parseInt(document.getElementById('vtCount').value),
+                durationMs: parseInt(document.getElementById('vtDuration').value),
+                type: document.getElementById('vtType').value
+            };
+            document.getElementById('results').innerHTML = 'Running...';
+            try {
+                const result = await postJSON('/threads/virtual', data);
+                displayResults('Virtual Threads Execution', result);
+            } catch (error) {
+                displayResults('Error', { error: error.message }, false, true);
+            }
+        });
+
+        document.getElementById('platformForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                count: parseInt(document.getElementById('ptCount').value),
+                durationMs: parseInt(document.getElementById('ptDuration').value),
+                type: document.getElementById('ptType').value
+            };
+            document.getElementById('results').innerHTML = 'Running...';
+            try {
+                const result = await postJSON('/threads/platform', data);
+                displayResults('Platform Threads Execution', result);
+            } catch (error) {
+                displayResults('Error', { error: error.message }, false, true);
+            }
+        });
+
+        document.getElementById('benchmarkForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const count = parseInt(document.getElementById('benchCount').value);
+            const duration = parseInt(document.getElementById('benchDuration').value);
+            document.getElementById('results').innerHTML = 'Running benchmark (this may take a while)...';
+            try {
+                const result = await fetch(`/threads/benchmark?count=${count}&durationMs=${duration}`).then(r => r.json());
+                displayResults('Benchmark Results', result, true);
+            } catch (error) {
+                displayResults('Error', { error: error.message }, false, true);
+            }
+        });
+
+        document.getElementById('pipelineForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                items: parseInt(document.getElementById('pipelineItems').value),
+                stages: parseInt(document.getElementById('pipelineStages').value)
+            };
+            document.getElementById('results').innerHTML = 'Running pipeline...';
+            try {
+                const result = await postJSON('/threads/pipeline', data);
+                displayResults('Pipeline Execution', result);
+            } catch (error) {
+                displayResults('Error', { error: error.message }, false, true);
+            }
+        });
+    </script>
+</body>
+</html>
