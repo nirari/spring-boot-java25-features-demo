@@ -79,6 +79,14 @@ src/main/java/com/example/demo/
 
 **Request/Response bodies:** See corresponding controller files for detailed request JSON structures and response formats.
 
+## Important Rules
+
+### NEVER
+- Commit directly to `main` branch
+
+### ALWAYS
+- Write tests for new endpoints
+
 ## Important Notes
 
 - H2 database stores data in memory; data is lost on restart
